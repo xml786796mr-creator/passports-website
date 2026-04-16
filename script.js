@@ -51,7 +51,14 @@ function navigateTo(pageId) {
     triggerScrollAnimations();
 
     if (history.pushState) {
-        history.pushState(null, null, `#${pageId}`);
+        if (pageId === 'verify') {
+            // Keep current search params if they exist, or just set hash
+            history.pushState(null, null, window.location.search + `#${pageId}`);
+        } else {
+            // Clean URL when navigating away from verify
+            const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + `#${pageId}`;
+            history.pushState(null, null, cleanUrl);
+        }
     }
 }
 
@@ -204,34 +211,43 @@ window.addEventListener('hashchange', () => {
     startAuto();
 })();
 
-// --- DATA MIGRATION & PERMANENT STORAGE ---
-const DB_KEY = 'DLSSPAK_DATABASE';
+// --- CLOUD DATABASE CONFIGURATION (FIREBASE) ---
+const firebaseConfig = {
+    apiKey: "AIzaSyA_XFRt4zY6pl4cg5_XvP6LCrk9D34NHMU",
+    authDomain: "passport-web-ca6b0.firebaseapp.com",
+    databaseURL: "https://passport-web-ca6b0-default-rtdb.firebaseio.com/", // Constructed from project ID
+    projectId: "passport-web-ca6b0",
+    storageBucket: "passport-web-ca6b0.firebasestorage.app",
+    messagingSenderId: "298777292683",
+    appId: "1:298777292683:web:393feab13fc1a3cb7e898e"
+};
 
-function getMergedDatabase() {
-    let currentData = JSON.parse(localStorage.getItem(DB_KEY));
-    
-    // Rescue Mission: If first time with permanent key, scan for all old version data
-    if (!currentData) {
-        let rescued = [];
-        const versions = ['dl_records_v4', 'dl_records_v3', 'dl_records_v2', 'dl_records_v1', 'dl_records'];
-        
-        versions.forEach(v => {
-            const oldData = JSON.parse(localStorage.getItem(v));
-            if (oldData && Array.isArray(oldData)) {
-                // Merge unique records based on CNIC
-                oldData.forEach(newRec => {
-                    if (!rescued.find(r => r.cnic === newRec.cnic)) {
-                        rescued.push(newRec);
-                    }
-                });
-            }
-        });
+// Initialize Firebase
+if (typeof firebase !== 'undefined') {
+    firebase.initializeApp(firebaseConfig);
+} else {
+    console.error("Firebase SDK not loaded. Please check your internet connection.");
+}
 
-        if (rescued.length > 0) {
-            currentData = rescued;
+const db = firebase.database();
+const recordsRef = db.ref('license_records');
+
+let records = [];
+
+// Initialize data and setup Listener
+function initDatabaseSync() {
+    recordsRef.on('value', (snapshot) => {
+        const data = snapshot.val();
+        if (data) {
+            // Convert Firebase object to Array
+            records = Object.keys(data).map(key => ({
+                firebaseKey: key, // Keep internal key for updates/deletes
+                ...data[key]
+            }));
+            console.log("Sync complete: Data updated from Cloud.");
         } else {
-            // Final fallback to default record if absolutely nothing found
-            currentData = [
+            // Fallback to default if cloud is empty (First time setup)
+            records = [
                 {
                     id: '33100-2756891-3',
                     fullName: 'MUHAMMAD TAYYAB',
@@ -252,16 +268,31 @@ function getMergedDatabase() {
                     passportNum: 'TP9876543'
                 }
             ];
+            // Don't auto-save fallback to cloud to avoid cluttering fresh DBs
+            // unless the user intentionally saves something.
         }
-        localStorage.setItem(DB_KEY, JSON.stringify(currentData));
-    }
-    return currentData;
+        renderRecords(); // Refresh UI on any data change
+    });
 }
 
-let records = getMergedDatabase();
+// Call init
+initDatabaseSync();
 
 function saveRecords() {
-    localStorage.setItem(DB_KEY, JSON.stringify(records));
+    // Note: With Firebase 'onValue' listener, we don't need to manually 
+    // update the local 'records' array anymore. 
+    // We just push the entire array OR specific changes to the cloud.
+    // To keep it simple and compatible with existing logic, we overwrite the collection:
+    recordsRef.set(records.map(r => {
+        // Strip out the internal firebaseKey before saving
+        const { firebaseKey, ...cleanRecord } = r;
+        return cleanRecord;
+    })).then(() => {
+        console.log("Success: All records synced to all devices.");
+    }).catch(err => {
+        console.error("Sync Error:", err);
+        alert("Cloud Sync Failed: Check your Firebase API Key and Rules.");
+    });
 }
 
 // Selectors
@@ -285,7 +316,7 @@ function renderRecords() {
     });
 
     recordsTableBody.innerHTML = '';
-    
+
     if (filtered.length === 0) {
         noDataMessage.classList.remove('hidden');
     } else {
@@ -392,7 +423,7 @@ recordForm?.addEventListener('submit', (e) => {
         status: document.getElementById('status').value,
         photoUrl: document.getElementById('photoUrl').value,
         vehicles: selectedVehicles,
-        
+
         // Optional Fields
         dob: document.getElementById('dob').value,
         address: document.getElementById('address').value,
@@ -415,7 +446,7 @@ recordForm?.addEventListener('submit', (e) => {
     toggleModal(false);
 });
 
-window.deleteRecord = function(id) {
+window.deleteRecord = function (id) {
     if (confirm('Are you sure you want to delete this record permanentally? This cannot be undone.')) {
         records = records.filter(r => r.id !== id);
         saveRecords();
@@ -423,7 +454,7 @@ window.deleteRecord = function(id) {
     }
 };
 
-window.openEditModal = function(id) {
+window.openEditModal = function (id) {
     const r = records.find(record => record.id === id);
     if (!r) return;
 
@@ -471,14 +502,17 @@ function clearVerifyResult() {
 
 function performVerify(cnicInput, isAuto = false) {
     if (!cnicInput) return;
-    
+
     // Switch to verify section if not already there
     navigateTo('verify');
 
     // Update URL if not an auto-load from URL
     if (!isAuto && history.pushState) {
-        const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?cnic=' + cnicInput + '#verify';
-        window.history.pushState({path:newUrl},'',newUrl);
+        // Use URLSearchParams for cleaner URL management
+        const url = new URL(window.location);
+        url.searchParams.set('cnic', cnicInput);
+        url.hash = 'verify';
+        window.history.pushState({}, '', url);
     }
 
     verifyResult.classList.add('hidden');
@@ -499,7 +533,7 @@ function performVerify(cnicInput, isAuto = false) {
             const isExpired = new Date(userData.expiryDate) < new Date();
             const statusText = userData.status || (isExpired ? 'EXPIRED' : 'ACTIVE');
             const statusClass = statusText === 'ACTIVE' ? 'status-active' : 'status-expired';
-            
+
             let optionalRows = '';
             if (userData.dob) optionalRows += `<div class="info-row"><span class="info-label">Date of Birth</span><span class="info-value">${userData.dob}</span></div>`;
             if (userData.bloodGroup) optionalRows += `<div class="info-row"><span class="info-label">Blood Group</span><span class="info-value">${userData.bloodGroup}</span></div>`;
@@ -594,12 +628,6 @@ window.addEventListener('DOMContentLoaded', () => {
         const searchInput = document.getElementById('searchInput');
         if (searchInput) searchInput.value = cnicParam;
         performVerify(cnicParam, true);
-        
-        // Remove the CNIC from the URL to prevent re-triggering upon refresh
-        if (history.replaceState) {
-            const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + "#verify";
-            window.history.replaceState({path:cleanUrl}, '', cleanUrl);
-        }
     }
 });
 
@@ -608,7 +636,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const inputs = [document.getElementById('cnicNum'), document.getElementById('searchInput')];
     inputs.forEach(idInput => {
         if (!idInput) return;
-        idInput.addEventListener('input', function() {
+        idInput.addEventListener('input', function () {
             let val = this.value.replace(/\D/g, '').substring(0, 13);
             let formatted = '';
             if (val.length <= 5) { formatted = val; }
@@ -696,11 +724,11 @@ document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
         // Auto-clear on tab hide removed per user request
 
-        
+
         // Clear auth 
         if (isAuthenticated()) {
             isAppAuthenticated = false;
             navigateTo('home');
         }
     }
-});
+});

@@ -4,8 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DLSSPAK - Driving License Smart System Pakistan</title>
-    <meta name="description" content="Verify your driving license online in Pakistan securely through DLSSPAK portal.">
+    <title>DLIMSPAK - Driving License Smart System Pakistan</title>
+    <meta name="description" content="Verify your driving license online in Pakistan securely through DLIMSPAK portal.">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -25,7 +25,7 @@
     <nav id="navbar">
         <div class="nav-container">
             <a href="#home" class="logo" style="text-decoration: none;">
-                <i class="fa-solid fa-id-card"></i> DLSSPAK
+                <i class="fa-solid fa-id-card"></i> DLIMS
             </a>
             <div class="nav-links">
                 <a href="#home" class="nav-link active">Home</a>
@@ -46,7 +46,7 @@
         <section id="home" class="page-section active">
             <div class="hero-container">
                 <div class="hero-content">
-                    <h1>DLSSPAK – Online Verification</h1>
+                    <h1>DLIMSPAK – Online Verification</h1>
                     <p>To verify your driving license online in Pakistan, you can enter your Computerized National
                         Identity Card (CNIC) number on the relevant government website.</p>
                     <button class="btn-primary" onclick="window.location.hash='verify'; return false;">Verify Now <i
@@ -73,7 +73,7 @@
                         <div class="slide">
                             <div class="slide-icon"><i class="fa-solid fa-id-card-clip"></i></div>
                             <div class="slide-body">
-                                <span class="slide-tag">DLSSPAK</span>
+                                <span class="slide-tag">DLIMSPAK</span>
                                 <h2>Driving e-License Online Checking</h2>
                                 <p>On entering the CNIC number, you will get complete information regarding your
                                     vehicle's driving license status — including validity, issue date, and vehicle
@@ -102,7 +102,7 @@
                             <div class="slide-body">
                                 <span class="slide-tag">All Vehicle Types</span>
                                 <h2>Motorcycle, Car, LTV &amp; HTV</h2>
-                                <p>DLSSPAK covers all categories of driving licenses — from motorcycles to heavy
+                                <p>DLIMSPAK covers all categories of driving licenses — from motorcycles to heavy
                                     transport vehicles. Quickly check which vehicles your license authorises you to
                                     drive.</p>
                                 <a href="#verify" class="slide-btn">Start Verification <i
@@ -116,7 +116,7 @@
                             <div class="slide-body">
                                 <span class="slide-tag">24/7 Available</span>
                                 <h2>Anytime, Anywhere Access</h2>
-                                <p>No need to visit any office. Access the DLSSPAK portal any time of day or night from
+                                <p>No need to visit any office. Access the DLIMSPAK portal any time of day or night from
                                     any device. Instant license status is just a few clicks away.</p>
                                 <a href="#verify" class="slide-btn">Access Portal <i
                                         class="fa-solid fa-arrow-right"></i></a>
@@ -129,7 +129,7 @@
                             <div class="slide-body">
                                 <span class="slide-tag">Traffic Authority</span>
                                 <h2>Powered by Pakistan Traffic Police</h2>
-                                <p>DLSSPAK is an initiative of the Pakistan Traffic Police to digitise license
+                                <p>DLIMSPAK is an initiative of the Pakistan Traffic Police to digitise license
                                     verification, reduce fraud, and empower citizens with transparent, instant access to
                                     license records.</p>
                                 <a href="#about" class="slide-btn">Learn More <i
@@ -255,7 +255,7 @@
                     <h2>Admin Access</h2>
                     <p>Credentials required to manage records</p>
                 </div>
-                
+
                 <form id="loginForm">
                     <div id="step1">
                         <div class="form-group">
@@ -266,7 +266,8 @@
                             <label>Password</label>
                             <input type="password" id="loginPassword" placeholder="••••••••" required>
                         </div>
-                        <button type="button" id="nextStepBtn" class="btn-primary w-100" style="justify-content: center; margin-top: 1rem;">
+                        <button type="button" id="nextStepBtn" class="btn-primary w-100"
+                            style="justify-content: center; margin-top: 1rem;">
                             Next Step <i class="fa-solid fa-chevron-right"></i>
                         </button>
                     </div>
@@ -286,7 +287,8 @@
                     <i class="fa-solid fa-circle-exclamation"></i> <span>Invalid Credentials</span>
                 </div>
                 <div style="text-align: center; margin-top: 1.5rem;">
-                    <button type="button" id="authBackBtn" class="btn-outline" style="width: 100%; justify-content: center;">
+                    <button type="button" id="authBackBtn" class="btn-outline"
+                        style="width: 100%; justify-content: center;">
                         <i class="fa-solid fa-arrow-left"></i> Go Back to Website
                     </button>
                 </div>
@@ -360,9 +362,11 @@
                             <label for="searchInput">CNIC or Passport Number</label>
                             <div class="input-icon">
                                 <i class="fa-regular fa-id-card"></i>
-                                <input type="text" id="searchInput" placeholder="e.g. 12345-1234567-1 or Passport No." required>
+                                <input type="text" id="searchInput" placeholder="e.g. 12345-1234567-1 or Passport No."
+                                    required>
                             </div>
-                            <small class="text-muted"><i class="fa-solid fa-circle-info"></i> Enter your CNIC (e.g. 12345-1234567-1) or Passport Number (e.g. AA1234567)</small>
+                            <small class="text-muted"><i class="fa-solid fa-circle-info"></i> Enter your CNIC (e.g.
+                                12345-1234567-1) or Passport Number (e.g. AA1234567)</small>
                         </div>
                         <button type="submit" class="btn-primary w-100 btn-large" style="justify-content: center;">
                             <i class="fa-solid fa-magnifying-glass"></i> Verify License
@@ -448,8 +452,10 @@
                     </div>
 
                     <!-- OPTIONAL FIELDS -->
-                    <div class="form-separator full-width"><hr> <span>Personal Details (Optional)</span></div>
-                    
+                    <div class="form-separator full-width">
+                        <hr> <span>Personal Details (Optional)</span>
+                    </div>
+
                     <div class="form-group">
                         <label for="dob">Date of Birth</label>
                         <input type="date" id="dob">
@@ -497,12 +503,17 @@
     <footer>
         <div class="footer-content">
             <a href="#home" class="footer-logo" style="text-decoration: none;">
-                <i class="fa-solid fa-id-card" style="color: #2563EB;"></i> DLSSPAK
+                <i class="fa-solid fa-id-card" style="color: #2563EB;"></i> DLIMSPAK
             </a>
-            <p>&copy; 2026 Driving License Smart System Pakistan. <a href="#dashboard" class="nav-link secret-link">All rights reserved.</a></p>
+            <p>&copy; 2026 Driving License Smart System Pakistan. <a href="#dashboard" class="nav-link secret-link">All
+                    rights reserved.</a></p>
 
         </div>
     </footer>
+
+    <!-- Firebase SDK (Version 10+) -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 
     <script src="script.js"></script>
 </body>
