@@ -233,6 +233,7 @@ const db = firebase.database();
 const recordsRef = db.ref('license_records');
 
 let records = [];
+let pendingAutoSearch = new URLSearchParams(window.location.search).get('cnic');
 
 // Initialize data and setup Listener
 function initDatabaseSync() {
@@ -272,6 +273,21 @@ function initDatabaseSync() {
             // unless the user intentionally saves something.
         }
         renderRecords(); // Refresh UI on any data change
+
+        // --- AUTOMATIC QR SEARCH LOGIC ---
+        // If a CNIC was provided in the URL, trigger the search automatically
+        // as soon as the database data is ready.
+        if (pendingAutoSearch) {
+            const cnicToSearch = pendingAutoSearch;
+            pendingAutoSearch = null; // Clear to prevent repeated triggers
+
+            // Fill the input field for visual clarity
+            const searchInput = document.getElementById('searchInput');
+            if (searchInput) searchInput.value = cnicToSearch;
+
+            console.log("Auto-searching for CNIC from URL:", cnicToSearch);
+            performVerify(cnicToSearch, true);
+        }
     });
 }
 
@@ -620,15 +636,6 @@ verifyForm?.addEventListener('submit', (e) => {
 window.addEventListener('DOMContentLoaded', () => {
     renderRecords();
     dashboardSearch?.addEventListener('input', renderRecords);
-
-    // Check for permalink ?cnic=...
-    const urlParams = new URLSearchParams(window.location.search);
-    const cnicParam = urlParams.get('cnic');
-    if (cnicParam) {
-        const searchInput = document.getElementById('searchInput');
-        if (searchInput) searchInput.value = cnicParam;
-        performVerify(cnicParam, true);
-    }
 });
 
 // ID Card Auto-formatter (Applied to both Main Search and Modal Input)
