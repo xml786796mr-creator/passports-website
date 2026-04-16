@@ -326,9 +326,12 @@ const cancelBtn = document.getElementById('cancelBtn');
 function renderRecords() {
     if (!recordsTableBody) return;
     const searchTerm = dashboardSearch.value.toLowerCase();
+    const statusFilter = document.getElementById('statusFilter')?.value || 'all';
 
     const filtered = records.filter(r => {
-        return r.fullName.toLowerCase().includes(searchTerm) || r.cnic.includes(searchTerm);
+        const matchesSearch = r.fullName.toLowerCase().includes(searchTerm) || r.cnic.includes(searchTerm);
+        const matchesStatus = (statusFilter === 'all') || (r.status.toLowerCase() === statusFilter.toLowerCase());
+        return matchesSearch && matchesStatus;
     });
 
     recordsTableBody.innerHTML = '';
@@ -636,6 +639,7 @@ verifyForm?.addEventListener('submit', (e) => {
 window.addEventListener('DOMContentLoaded', () => {
     renderRecords();
     dashboardSearch?.addEventListener('input', renderRecords);
+    document.getElementById('statusFilter')?.addEventListener('change', renderRecords);
 });
 
 // ID Card Auto-formatter (Applied to both Main Search and Modal Input)
