@@ -30,10 +30,8 @@ function navigateTo(pageId) {
         isAppAuthenticated = false;
     }
 
-    // Auto-clear verify result when leaving verify tab
-    if (pageId !== 'verify' && typeof clearVerifyResult === 'function') {
-        clearVerifyResult();
-    }
+    // Auto-clear logic removed per user request for record persistence
+
 
     pageSections.forEach(section => section.classList.remove('active'));
     navLinks.forEach(link => link.classList.remove('active'));
@@ -295,9 +293,8 @@ function renderRecords() {
         filtered.forEach(r => {
             const row = document.createElement('tr');
             row.innerHTML = `
-                <td>
                     <div class="user-profile-cell">
-                        <img src="${r.photoUrl}" class="user-img" onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(r.fullName)}&background=112240&color=64FFDA';">
+                        <img src="${r.photoUrl}" class="user-img" onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(r.fullName)}&background=EEF2FF&color=2563EB';">
                     </div>
                 </td>
                 <td>
@@ -514,7 +511,7 @@ function performVerify(cnicInput, isAuto = false) {
             verifyResult.innerHTML = `
                 <div class="portal-result-card scroll-anim">
                     <div class="profile-photo-container">
-                        <img src="${userData.photoUrl}" class="portal-photo" onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(userData.fullName)}&background=f0f2f5&color=112240';">
+                        <img src="${userData.photoUrl}" class="portal-photo" onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(userData.fullName)}&background=EEF2FF&color=2563EB';">
                     </div>
                     <h4 class="holder-title">License Holder</h4>
                     
@@ -697,10 +694,8 @@ authBackBtn?.addEventListener('click', () => {
 // Auto-logout & Record clear on browser tab visibility hidden
 document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
-        // Clear verify result
-        if (typeof clearVerifyResult === 'function') {
-            clearVerifyResult();
-        }
+        // Auto-clear on tab hide removed per user request
+
         
         // Clear auth 
         if (isAuthenticated()) {
