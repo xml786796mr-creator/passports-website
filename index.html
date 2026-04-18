@@ -9,6 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
     <link rel="stylesheet" href="style.css">
 </head>
 
@@ -508,6 +509,21 @@
         </div>
     </div>
 
+    <!-- Image Crop Modal Overlay -->
+    <div id="cropModal" class="auth-overlay hidden">
+        <div class="modal-content crop-modal-content">
+            <h3>Crop Profile Photo</h3>
+            <p>Adjust your photo to fit the square frame.</p>
+            <div class="crop-container">
+                <img id="imageToCrop" src="" style="max-width: 100%;">
+            </div>
+            <div class="modal-footer">
+                <button type="button" id="cancelCropBtn" class="btn-cancel">Cancel</button>
+                <button type="button" id="confirmCropBtn" class="btn-primary">Apply Crop</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Footer -->
     <footer>
         <div class="footer-content">
@@ -524,6 +540,8 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <!-- Supabase SDK (For Image Uploads) -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Cropper.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
 
     <script src="script.js"></script>
 </body>

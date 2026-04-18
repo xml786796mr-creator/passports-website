@@ -265,7 +265,38 @@ try {
     console.error("Firebase DB error:", e);
 }
 
-let records = [];
+// Initialize records with default data immediately
+let records = [
+    {
+        id: '33100-2756891-3',
+        fullName: 'MUHAMMAD TAYYAB',
+        cnic: '33100-2756891-3',
+        fatherName: 'MUSHTAQ AHMAD',
+        nationalLicense: 'DL-23-9687',
+        issuedFrom: '2023-06-26',
+        issueDate: '2023-06-26',
+        expiryDate: '2028-06-25',
+        vehicles: ['M/CYCLE', 'LTV'],
+        status: 'ACTIVE',
+        photoUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop',
+        dob: '1995-12-10',
+        address: 'Sector G-11, Islamabad, Pakistan',
+        height: '5/7',
+        bloodGroup: 'O+',
+        callNumber: '03001234567',
+        passportNum: 'TP9876543'
+    }
+];
+
+// Load backup from LocalStorage if it exists
+try {
+    const backup = localStorage.getItem('dlims_backup_records');
+    if (backup) {
+        records = JSON.parse(backup);
+        console.log("Local backup loaded.");
+    }
+} catch (e) { console.error("Backup load fail:", e); }
+
 let pendingAutoSearch = new URLSearchParams(window.location.search).get('cnic');
 
 // Initialize data and setup Listener
@@ -278,48 +309,14 @@ function initDatabaseSync() {
                 firebaseKey: key, // Keep internal key for updates/deletes
                 ...data[key]
             }));
-            console.log("Sync complete: Data updated from Cloud.");
-        } else {
-            // Fallback to default if cloud is empty (First time setup)
-            records = [
-                {
-                    id: '33100-2756891-3',
-                    fullName: 'MUHAMMAD TAYYAB',
-                    cnic: '33100-2756891-3',
-                    fatherName: 'MUSHTAQ AHMAD',
-                    nationalLicense: 'DL-23-9687',
-                    issuedFrom: '2023-06-26',
-                    issueDate: '2023-06-26',
-                    expiryDate: '2028-06-25',
-                    vehicles: ['M/CYCLE', 'LTV'],
-                    status: 'ACTIVE',
-                    photoUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop',
-                    dob: '1995-12-10',
-                    address: 'Sector G-11, Islamabad, Pakistan',
-                    height: '5/7',
-                    bloodGroup: 'O+',
-                    callNumber: '03001234567',
-                    passportNum: 'TP9876543'
-                }
-            ];
-            // Don't auto-save fallback to cloud to avoid cluttering fresh DBs
-            // unless the user intentionally saves something.
-        }
-        renderRecords(); // Refresh UI on any data change
-
-        // --- AUTOMATIC QR SEARCH LOGIC ---
-        // If a CNIC was provided in the URL, trigger the search automatically
-        // as soon as the database data is ready.
-        if (pendingAutoSearch) {
-            const cnicToSearch = pendingAutoSearch;
-            pendingAutoSearch = null; // Clear to prevent repeated triggers
-
-            // Fill the input field for visual clarity
+            console.log("Sync complete: Cloud data loaded.");
+            renderRecords(); // Refresh dashboard
+            
+            // Re-run verify if a search was active to update with cloud data
             const searchInput = document.getElementById('searchInput');
-            if (searchInput) searchInput.value = cnicToSearch;
-
-            console.log("Auto-searching for CNIC from URL:", cnicToSearch);
-            performVerify(cnicToSearch, true);
+            if (searchInput && searchInput.value) {
+                performVerify(searchInput.value, true);
+            }
         }
     });
 }
@@ -494,10 +491,13 @@ recordForm?.addEventListener('submit', (e) => {
                     console.warn("Supabase SDK missing. Using placeholder for photo.");
                 } else {
                     try {
-                        const fileName = `${Date.now()}-${photoFile.name.replace(/\s/g, '_')}`;
+                        const fileName = `${Date.now()}-cropped-${photoFile.name.replace(/\s/g, '_')}`;
+                        // Use the croppedBlob if it exists, otherwise the original file
+                        const uploadTarget = window.currentCroppedBlob || photoFile;
+                        
                         const { data, error } = await supabaseClient.storage
                             .from(BUCKET_NAME)
-                            .upload(fileName, photoFile);
+                            .upload(fileName, uploadTarget);
 
                         if (error) throw error;
 
@@ -742,23 +742,74 @@ verifyForm?.addEventListener('submit', (e) => {
 // Initial Render + Search Listener + Permalink Support
 window.addEventListener('DOMContentLoaded', () => {
     renderRecords();
-    dashboardSearch?.addEventListener('input', renderRecords);
-    document.getElementById('statusFilter')?.addEventListener('change', renderRecords);
-
-    // --- PHOTO PREVIEW LOGIC ---
+    // --- PHOTO PREVIEW & CROPPING LOGIC ---
     const photoFileInput = document.getElementById('photoFile');
     const photoPreview = document.getElementById('photoPreview');
+    const cropModal = document.getElementById('cropModal');
+    const imageToCrop = document.getElementById('imageToCrop');
+    const confirmCropBtn = document.getElementById('confirmCropBtn');
+    const cancelCropBtn = document.getElementById('cancelCropBtn');
+    
+    let cropper = null;
+    window.currentCroppedBlob = null; // Store globally for processSubmission
 
     photoFileInput?.addEventListener('change', function (e) {
         const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = function (event) {
-                photoPreview.innerHTML = `<img src="${event.target.result}" style="width:100%; height:100%; object-fit:cover; border-radius:8px;">`;
-            }
-            reader.readAsDataURL(file);
-        }
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function (event) {
+            imageToCrop.src = event.target.result;
+            cropModal.classList.remove('hidden');
+            cropModal.style.display = 'flex';
+            
+            if (cropper) cropper.destroy();
+            
+            cropper = new Cropper(imageToCrop, {
+                aspectRatio: 1, // Fixed square
+                viewMode: 1,
+                autoCropArea: 1,
+                responsive: true
+            });
+        };
+        reader.readAsDataURL(file);
     });
+
+    confirmCropBtn?.addEventListener('click', () => {
+        if (!cropper) return;
+        
+        cropper.getCroppedCanvas({
+            width: 500, // Standard size for IDs
+            height: 500
+        }).toBlob((blob) => {
+            window.currentCroppedBlob = blob;
+            const croppedUrl = URL.createObjectURL(blob);
+            photoPreview.innerHTML = `<img src="${croppedUrl}" style="width:100%; height:100%; object-fit:cover; border-radius:8px;">`;
+            
+            cropModal.classList.add('hidden');
+            cropModal.style.display = 'none';
+        }, 'image/jpeg', 0.9);
+    });
+
+    cancelCropBtn?.addEventListener('click', () => {
+        cropModal.classList.add('hidden');
+        cropModal.style.display = 'none';
+        photoFileInput.value = ''; // Reset file input
+    });
+
+    // --- AUTOMATIC QR SEARCH LOGIC (Moved to Global Init) ---
+    if (pendingAutoSearch) {
+        const cnicToSearch = pendingAutoSearch;
+        pendingAutoSearch = null; 
+        
+        console.log("Triggering auto-search for:", cnicToSearch);
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            searchInput.value = cnicToSearch;
+            // Short delay to ensure sections are ready
+            setTimeout(() => performVerify(cnicToSearch, true), 300);
+        }
+    }
 });
 
 // ID Card Auto-formatter (Applied to both Main Search and Modal Input)
@@ -844,8 +895,6 @@ logoutBtn?.addEventListener('click', () => {
 
 const backToHomeBtn = document.getElementById('backToHomeBtn');
 backToHomeBtn?.addEventListener('click', () => {
-    // Navigating away from dashboard automatically handles logging out
-    // via the navigateTo function's built-in safeguard
     navigateTo('home');
 });
 
@@ -858,10 +907,6 @@ authBackBtn?.addEventListener('click', () => {
 // Auto-logout & Record clear on browser tab visibility hidden
 document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
-        // Auto-clear on tab hide removed per user request
-
-
-        // Clear auth 
         if (isAuthenticated()) {
             isAppAuthenticated = false;
             navigateTo('home');

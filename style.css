@@ -1597,4 +1597,43 @@ footer {
 .photo-upload-group label[for="photoFile"] {
     margin-bottom: 0;
 }
+
+/* Crop Modal Styles */
+.crop-modal-content {
+    max-width: 500px !important;
+    padding: 1.5rem !important;
+}
+
+.crop-container {
+    width: 100%;
+    max-height: 400px;
+    margin: 1.5rem 0;
+    overflow: hidden;
+    background: #000;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#imageToCrop {
+    display: block;
+    max-width: 100%;
+}
+
+.btn-cancel {
+    background: #f1f5f9;
+    color: #64748b;
+    border: 1px solid #e2e8f0;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-cancel:hover {
+    background: #e2e8f0;
+    color: #475569;
+}
 
