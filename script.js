@@ -19,8 +19,10 @@ function isAuthenticated() {
 }
 
 function navigateTo(pageId) {
+    console.log("Navigating to:", pageId);
     // Auth Guard for Dashboard
     if (pageId === 'dashboard' && !isAuthenticated()) {
+        console.log("Auth required for dashboard - showing login.");
         showLoginOverlay();
         return;
     }
@@ -63,15 +65,20 @@ function navigateTo(pageId) {
 }
 
 // Nav link clicks
-navLinks.forEach(link => {
-    link.addEventListener('click', (e) => {
-        const targetAttr = link.getAttribute('href');
-        if (targetAttr && targetAttr.startsWith('#')) {
-            e.preventDefault();
-            navigateTo(targetAttr.substring(1));
-        }
+function initNavListeners() {
+    const freshNavLinks = document.querySelectorAll('.nav-link');
+    freshNavLinks.forEach(link => {
+        link.addEventListener('click', (e) => {
+            const targetAttr = link.getAttribute('href');
+            console.log("Nav link clicked:", targetAttr);
+            if (targetAttr && targetAttr.startsWith('#')) {
+                e.preventDefault();
+                navigateTo(targetAttr.substring(1));
+            }
+        });
     });
-});
+}
+initNavListeners();
 
 // Logo link clicks (navbar + footer)
 document.querySelectorAll('a.logo, a.footer-logo').forEach(logoLink => {
@@ -229,8 +236,34 @@ if (typeof firebase !== 'undefined') {
     console.error("Firebase SDK not loaded. Please check your internet connection.");
 }
 
-const db = firebase.database();
-const recordsRef = db.ref('license_records');
+// --- NEW: SUPABASE INITIALIZATION (ONLY FOR PHOTOS) ---
+const SUPABASE_URL = "https://iuidnruijsjizrfpnrnz.supabase.co";
+const SUPABASE_KEY = "sb_publishable_djGZWJJ4At6fhpRchFlCdg_Jg8eC7AZ";
+const BUCKET_NAME = 'webpassport';
+let supabaseClient = null;
+
+try {
+    if (typeof supabase !== 'undefined') {
+        supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        console.log("Supabase initialized successfully.");
+    } else {
+        console.warn("Supabase library not found. Profile photo uploads will be disabled.");
+    }
+} catch (e) {
+    console.error("Supabase Init Error:", e);
+}
+
+let db = null;
+let recordsRef = null;
+
+try {
+    if (typeof firebase !== 'undefined') {
+        db = firebase.database();
+        recordsRef = db.ref('license_records');
+    }
+} catch (e) {
+    console.error("Firebase DB error:", e);
+}
 
 let records = [];
 let pendingAutoSearch = new URLSearchParams(window.location.search).get('cnic');
@@ -291,24 +324,33 @@ function initDatabaseSync() {
     });
 }
 
-// Call init
-initDatabaseSync();
+// Call init if recordsRef is available
+if (recordsRef) {
+    initDatabaseSync();
+} else {
+    console.warn("Database not available - running in offline mode.");
+}
 
 function saveRecords() {
-    // Note: With Firebase 'onValue' listener, we don't need to manually 
-    // update the local 'records' array anymore. 
-    // We just push the entire array OR specific changes to the cloud.
-    // To keep it simple and compatible with existing logic, we overwrite the collection:
-    recordsRef.set(records.map(r => {
-        // Strip out the internal firebaseKey before saving
-        const { firebaseKey, ...cleanRecord } = r;
-        return cleanRecord;
-    })).then(() => {
-        console.log("Success: All records synced to all devices.");
-    }).catch(err => {
-        console.error("Sync Error:", err);
-        alert("Cloud Sync Failed: Check your Firebase API Key and Rules.");
-    });
+    // 1. Sync to Cloud if available
+    if (recordsRef) {
+        recordsRef.set(records.map(r => {
+            const { firebaseKey, ...cleanRecord } = r;
+            return cleanRecord;
+        })).then(() => {
+            console.log("Success: Cloud Sync Complete.");
+        }).catch(err => {
+            console.error("Cloud Sync Error:", err);
+            // Don't alert here to avoid annoying the user if they are just testing locally
+        });
+    }
+
+    // 2. Always Save to Local Storage as a reliable backup
+    try {
+        localStorage.setItem('dlims_backup_records', JSON.stringify(records));
+    } catch (e) {
+        console.error("Local Storage Error:", e);
+    }
 }
 
 // Selectors
@@ -342,7 +384,12 @@ function renderRecords() {
         noDataMessage.classList.add('hidden');
         filtered.forEach(r => {
             const row = document.createElement('tr');
+            // Ensure status is lowercase for the class, default to 'active' if missing
+            const statusClass = (r.status || 'active').toLowerCase();
+            const vehiclesList = Array.isArray(r.vehicles) ? r.vehicles.join(', ') : 'None';
+
             row.innerHTML = `
+                <td>
                     <div class="user-profile-cell">
                         <img src="${r.photoUrl}" class="user-img" onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(r.fullName)}&background=EEF2FF&color=2563EB';">
                     </div>
@@ -360,8 +407,8 @@ function renderRecords() {
                     <div style="font-size: 0.9rem;">To: ${r.expiryDate}</div>
                 </td>
                 <td>
-                    <span class="status-badge ${r.status.toLowerCase()}">${r.status}</span>
-                    <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">${r.vehicles.join(', ')}</div>
+                    <span class="status-badge ${statusClass}">${r.status || 'ACTIVE'}</span>
+                    <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">${vehiclesList}</div>
                 </td>
                 <td>
                     <div class="action-btns">
@@ -389,7 +436,11 @@ function toggleModal(show = true) {
         document.body.style.overflow = 'auto';
         recordForm.reset();
         document.getElementById('editId').value = '';
+        document.getElementById('photoUrl').value = '';
+        document.getElementById('photoPreview').innerHTML = '<span>No photo selected</span>';
         document.getElementById('modalTitle').innerText = 'Add New License Record';
+        // Uncheck all vehicle checkboxes
+        document.querySelectorAll('input[name="vehicles"]').forEach(cb => cb.checked = false);
     }
 }
 
@@ -431,38 +482,83 @@ recordForm?.addEventListener('submit', (e) => {
         return;
     }
 
-    const data = {
-        fullName: document.getElementById('fullName').value.toUpperCase(),
-        cnic: cnic,
-        fatherName: document.getElementById('fatherName').value.toUpperCase(),
-        nationalLicense: document.getElementById('nationalLicense').value.toUpperCase(),
-        issuedFrom: document.getElementById('issuedFrom').value,
-        issueDate: issueDate,
-        expiryDate: expiryDate,
-        status: document.getElementById('status').value,
-        photoUrl: document.getElementById('photoUrl').value,
-        vehicles: selectedVehicles,
+    // --- NEW: UPLOAD SYSTEM LOGIC ---
+    const processSubmission = async () => {
+        try {
+            console.log("Starting submission process...");
+            const photoFile = document.getElementById('photoFile').files[0];
+            let finalPhotoUrl = document.getElementById('photoUrl').value;
 
-        // Optional Fields
-        dob: document.getElementById('dob').value,
-        address: document.getElementById('address').value,
-        height: document.getElementById('height').value,
-        bloodGroup: document.getElementById('bloodGroup').value,
-        callNumber: callNumber,
-        passportNum: document.getElementById('passportNum').value.toUpperCase()
+            if (photoFile) {
+                if (!supabaseClient) {
+                    console.warn("Supabase SDK missing. Using placeholder for photo.");
+                } else {
+                    try {
+                        const fileName = `${Date.now()}-${photoFile.name.replace(/\s/g, '_')}`;
+                        const { data, error } = await supabaseClient.storage
+                            .from(BUCKET_NAME)
+                            .upload(fileName, photoFile);
+
+                        if (error) throw error;
+
+                        const { data: urlData } = supabaseClient.storage
+                            .from(BUCKET_NAME)
+                            .getPublicUrl(fileName);
+
+                        finalPhotoUrl = urlData.publicUrl;
+                        console.log("Photo upload success:", finalPhotoUrl);
+                    } catch (err) {
+                        console.error("Supabase Upload Error:", err);
+                        alert("Note: Photo upload failed, but record will be saved without it.");
+                    }
+                }
+            }
+
+            // Construct the clean data object
+            const data = {
+                fullName: document.getElementById('fullName').value.toUpperCase(),
+                cnic: cnic,
+                fatherName: document.getElementById('fatherName').value.toUpperCase(),
+                nationalLicense: document.getElementById('nationalLicense').value.toUpperCase(),
+                issuedFrom: document.getElementById('issuedFrom').value,
+                issueDate: issueDate,
+                expiryDate: expiryDate,
+                status: document.getElementById('status').value,
+                photoUrl: finalPhotoUrl || 'https://ui-avatars.com/api/?name=User&background=EEF2FF&color=2563EB',
+                vehicles: selectedVehicles,
+
+                // Optional Fields
+                dob: document.getElementById('dob').value || '',
+                address: document.getElementById('address').value || '',
+                height: document.getElementById('height').value || '',
+                bloodGroup: document.getElementById('bloodGroup').value || '',
+                callNumber: callNumber || '',
+                passportNum: document.getElementById('passportNum').value.toUpperCase() || ''
+            };
+
+            if (editId) {
+                const index = records.findIndex(r => r.id === editId);
+                if (index !== -1) {
+                    records[index] = { ...records[index], ...data };
+                }
+            } else {
+                data.id = data.cnic + "-" + Date.now();
+                records.push(data);
+            }
+
+            console.log("Record processed. Triggering save...");
+            saveRecords();
+            renderRecords();
+            toggleModal(false);
+            console.log("Submission complete!");
+
+        } catch (globalErr) {
+            console.error("Global Submission Error:", globalErr);
+            alert("Unexpected Error during save: " + globalErr.message);
+        }
     };
 
-    if (editId) {
-        const index = records.findIndex(r => r.id === editId);
-        if (index !== -1) records[index] = { ...records[index], ...data };
-    } else {
-        data.id = data.cnic + Date.now();
-        records.push(data);
-    }
-
-    saveRecords();
-    renderRecords();
-    toggleModal(false);
+    processSubmission();
 });
 
 window.deleteRecord = function (id) {
@@ -501,6 +597,14 @@ window.openEditModal = function (id) {
     document.querySelectorAll('input[name="vehicles"]').forEach(cb => {
         cb.checked = r.vehicles.includes(cb.value);
     });
+
+    // Handle Upload Preview in Edit Mode
+    const preview = document.getElementById('photoPreview');
+    if (r.photoUrl) {
+        preview.innerHTML = `<img src="${r.photoUrl}" style="width:100%; height:100%; object-fit:cover; border-radius:8px;">`;
+    } else {
+        preview.innerHTML = `<span>No photo selected</span>`;
+    }
 
     toggleModal(true);
 };
@@ -640,6 +744,21 @@ window.addEventListener('DOMContentLoaded', () => {
     renderRecords();
     dashboardSearch?.addEventListener('input', renderRecords);
     document.getElementById('statusFilter')?.addEventListener('change', renderRecords);
+
+    // --- PHOTO PREVIEW LOGIC ---
+    const photoFileInput = document.getElementById('photoFile');
+    const photoPreview = document.getElementById('photoPreview');
+
+    photoFileInput?.addEventListener('change', function (e) {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function (event) {
+                photoPreview.innerHTML = `<img src="${event.target.result}" style="width:100%; height:100%; object-fit:cover; border-radius:8px;">`;
+            }
+            reader.readAsDataURL(file);
+        }
+    });
 });
 
 // ID Card Auto-formatter (Applied to both Main Search and Modal Input)
@@ -669,7 +788,13 @@ const step2 = document.getElementById('step2');
 const logoutBtn = document.getElementById('logoutBtn');
 
 function showLoginOverlay() {
+    if (!loginSection) {
+        alert("Error: Login box missing in HTML!");
+        return;
+    }
+    console.log("Displaying login overlay...");
     loginSection.classList.remove('hidden');
+    loginSection.style.display = 'flex'; // Force visibility
     loginError.classList.add('hidden');
     step1.classList.remove('hidden');
     step2.classList.add('hidden');

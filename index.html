@@ -436,9 +436,18 @@
                             <option value="SUSPENDED">SUSPENDED</option>
                         </select>
                     </div>
-                    <div class="form-group full-width">
-                        <label for="photoUrl">Profile Photo URL</label>
-                        <input type="url" id="photoUrl" required placeholder="https://example.com/photo.jpg">
+                    <div class="form-group full-width photo-upload-group">
+                        <label for="photoFile">Profile Photo (New Upload System)</label>
+                        <div class="upload-controls">
+                            <input type="file" id="photoFile" accept="image/*" class="hidden">
+                            <label for="photoFile" class="btn-secondary upload-btn">
+                                <i class="fa-solid fa-cloud-arrow-up"></i> Choose Photo
+                            </label>
+                            <div id="photoPreview" class="preview-thumbnail">
+                                <span>No photo selected</span>
+                            </div>
+                            <input type="hidden" id="photoUrl">
+                        </div>
                     </div>
                     <div class="form-group full-width">
                         <label>Allowed Vehicles</label>
@@ -513,7 +522,8 @@
 
     <!-- Firebase SDK (Version 10+) -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    <!-- Supabase SDK (For Image Uploads) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <script src="script.js"></script>
 </body>
